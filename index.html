@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script type="text/javascript">
+
+var mdict = new Array();
+var subdict = new Array();
+var used = new Array();
+
+function sort(str){
+	if(str.length < 2 ){
+		return str;
+	}else if(str.length == 2) {
+		if(str.charAt(0) <= str.charAt(1)){
+			return str;
+		}else{
+			return str.charAt(1) + str.charAt(0);
+		}
+	}else{
+		var uno = str.charAt(0);
+		var rest = sort(str.slice(1));
+		var ln = rest.length;
+		var rtn = uno + rest;
+		var j=0;
+		for(i=0;i<ln;i++){
+			j=i;
+			rtn = rest.slice(0,i) + uno + rest.slice(i,ln);
+			if(rest.charAt(i) >= uno){
+				break;
+			}
+		}
+		if(j < i){
+			j=i;
+			rtn = rest + uno; 
+		}
+		return rtn;
+	}
+}
+
+function showgo(uno, str, mx){
+	var ln = str.length;
+	if(ln == 1){
+		var wrd = uno + "" + str;
+		var lo = $("#lob")[0].value;
+		if(lo.length == 0){
+			lo = "";
+		}
+		var hi = $("#hib")[0].value;
+		if(hi.length == 0){
+			hi = "ZZZZZZZ";
+		}
+		if(wrd >= lo && wrd <= hi){
+			$("#loga").append("<p>" + wrd + "</p>");
+			return 1;
+		}
+		return 0;
+	}
+	var count = 0;
+	for(var i=0;i<ln;i++){
+		var nstr = str.slice(0,i) + str.slice(i+1,ln);
+		
+		if(uno.length + 2 < mx){
+			//$("#loga").append("<p>**" + str + "  --  " + str.slice(0,i) + "," + str.charAt(i) + "," + str.slice(i+1,ln) + "  --  " + nstr + "; " + uno + ":" + uno.length + "**</p>");
+			count = count + showgo(uno + str.charAt(i), nstr, mx);
+		}else{
+			//$("#loga").append("<p>++" + str + "  --  " + str.slice(0,i) + "," + str.charAt(i) + "," + str.slice(i+1,ln) + "  --  " + nstr + "; " + uno + ":" + uno.length + "++</p>");
+			for(var j=0;j<nstr.length;j++){
+				count = count + showgo(uno + str.charAt(i), nstr.charAt(j) , mx);
+			}
+		}
+	}
+	return count;
+}
+
+//$("#loga").append("<p>yep:'" + $("#number")[0].value + "','" + str.length + "'</p>");
+
+function runcode(word){
+	$("#loga").empty();
+	var str = sort(word);
+	output(str);
+	if($("#number")[0].value <= str.length){
+		var mx = $("#number")[0].value;
+		var n = showgo("",str,mx);
+		b("Found " + n + " combos.");
+	}
+}
+
+function output(msg){
+	$("#output").text(msg);
+}
+
+function b(msg){
+	$("#logb").text(msg);
+}
+
+function loadDict(words){
+	//$("#loga").append("<p>$" + words + "$</p>");
+	var lines = words.split('\n');
+	var dups = 0;
+    for(var line = 0; line < lines.length; line++){
+		//console.log(lines[line]);
+		var cur = lines[line].trim();
+		var cln = cur.length;
+		var toadd = true;
+		if(mdict[cln]){
+			for(var ix=0;ix<mdict[cln].length;ix++){
+				
+				if(mdict[cln][ix].trim() == cur){
+					dups = dups + 1;
+					toadd = false;
+					break;
+				}
+			}
+			if(toadd){
+				mdict[cln].push(cur);
+			}
+		}else{
+			mdict[cln] = [ cur ];
+		}
+	}
+	var k = lines.length - dups;
+	b(k + " new words loaded in dictionary. " + dups + " duplicates not added.");
+}
+
+$(document).ready(function(){
+	$("#wordbox").keyup(function(){
+		this.value = this.value.toUpperCase();
+		runcode(this.value);
+	});
+	$("#lob").keyup(function(){
+		this.value = this.value.toUpperCase();
+		runcode($("#wordbox")[0].value);
+	});
+	$("#hib").keyup(function(){
+		this.value = this.value.toUpperCase();
+		runcode($("#wordbox")[0].value);
+	});
+	$("#number").change(function(){
+		runcode($("#wordbox")[0].value);
+	});
+	$("#dgo").change(function(){
+		if(this.checked){
+			$("#loga").append("<p>$Dict used:$</p>");
+			for(var i=0;i < mdict.length;i++){
+				if(mdict[i]){
+					$("#loga").append("<p>" + mdict[i] + ", len:" + mdict[i].length + "</p>");
+				}
+			}
+		}
+	});
+	
+	//Check File API support
+	if (window.File && window.FileList && window.FileReader) {
+		var filesInput = document.getElementById("files");
+		filesInput.addEventListener("change", function(event) {
+			var files = event.target.files; //FileList object
+			var output = document.getElementById("result");
+			for (var i = 0; i < files.length; i++) {
+				var file = files[i];
+
+				//Only plain text
+				if (!file.type.match('plain')) continue;
+				var rdr = new FileReader();
+				rdr.addEventListener("load", function(event) {
+					var mtextFile = event.target;
+					var mdiv = document.createElement("div");
+					mdiv.innerText = mtextFile.result;
+					//output.insertBefore(mdiv, null);
+					loadDict(mtextFile.result);
+				});
+				rdr.readAsText(file);
+				//var textByLine = ftxt.split("\n").trim();
+			}
+		});
+	}else {
+		b("Your browser does not support File API");
+	}
+});
+
+</script>
+</head>
+<body>
+<div style="visible:false">
+    <input id="files" type="file" />
+</div>
+<input type="text" id="wordbox" />
+<select id="number">
+	<option value="3">3</option>
+	<option value="4">4</option>
+	<option value="5">5</option>
+	<option value="6">6</option>
+</select>
+<input type="text" id="lob" /><input type="text" id="hib" />
+<br />
+<span>Use dict? <input type="checkbox" id="dgo"/></span>
+<br />
+<div id="output"></div>
+<hr />
+<div id="logb"></div>
+<hr /><br />
+<div id="loga"></div>
+<output id="result"></output>
+
+</body>
+</html>  
